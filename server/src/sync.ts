@@ -130,9 +130,9 @@ export function applySync(
   );
 
   const upsertItem = db.query(
-    `INSERT INTO items (id, list_id, name, quantity, note, category, checked, checked_at,
+    `INSERT INTO items (id, list_id, name, quantity, note, category, checked, checked_at, checked_by,
                         added_by, created_at, updated_at, deleted_at, rev)
-     VALUES ($id, $list_id, $name, $quantity, $note, $category, $checked, $checked_at,
+     VALUES ($id, $list_id, $name, $quantity, $note, $category, $checked, $checked_at, $checked_by,
              $added_by, $created_at, $updated_at, $deleted_at, $rev)
      ON CONFLICT(id) DO UPDATE SET
        list_id    = excluded.list_id,
@@ -142,6 +142,10 @@ export function applySync(
        category   = excluded.category,
        checked    = excluded.checked,
        checked_at = excluded.checked_at,
+       -- The user whose op checks the item. Later edits of a checked item keep it, unchecking clears it.
+       checked_by = CASE WHEN excluded.checked = 0 THEN NULL
+                         WHEN items.checked = 1 THEN items.checked_by
+                         ELSE excluded.checked_by END,
        updated_at = excluded.updated_at,
        deleted_at = excluded.deleted_at,
        rev        = excluded.rev`,
@@ -171,7 +175,13 @@ export function applySync(
         }
         const existing = getItemStamp.get({ id: item.id }) as { updated_at: number } | null;
         if (existing && existing.updated_at > item.updated_at) continue;
-        upsertItem.run({ ...item, checked: item.checked ? 1 : 0, added_by: userId, rev: nextRev(db) });
+        upsertItem.run({
+          ...item,
+          checked: item.checked ? 1 : 0,
+          checked_by: item.checked ? userId : null,
+          added_by: userId,
+          rev: nextRev(db),
+        });
         changed = true;
       }
     }

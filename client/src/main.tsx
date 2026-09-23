@@ -1,13 +1,20 @@
 import { render } from "preact";
-import { ListView } from "./components/ListView";
+import { HistoryView } from "./components/HistoryView";
+import { HomeView } from "./components/HomeView";
+import { StoreView } from "./components/StoreView";
 import { Login } from "./components/Login";
 import { session } from "./session";
+import { route } from "./router";
 import { initLocal, syncStatus } from "./state";
 import { runSync } from "./sync";
 import "./style.css";
 
 function App() {
-  return session.value ? <ListView /> : <Login />;
+  if (!session.value) return <Login />;
+  const r = route.value;
+  if (r.name === "history") return <HistoryView listId={r.listId} />;
+  if (r.name === "list") return <StoreView listId={r.listId} />;
+  return <HomeView />;
 }
 
 await initLocal();

@@ -105,6 +105,21 @@ describe("sync", () => {
     expect(json.changes.items.map((i) => i.name)).toEqual(["Brot"]);
   });
 
+  test("checked_by is whoever checked it, survives later edits and clears on uncheck", async () => {
+    const milk = item();
+    await sync(TOM, { since: 0, ops: [{ table: "items", row: milk }] });
+    const checked = { ...milk, checked: true, checked_at: 2000, updated_at: 2000 };
+
+    let { json } = await sync(SAM, { since: 0, ops: [{ table: "items", row: checked }] });
+    expect(json.changes.items[0]).toMatchObject({ checked_by: "sam", added_by: "tom" });
+
+    ({ json } = await sync(TOM, { since: 0, ops: [{ table: "items", row: { ...checked, name: "Hafermilch", updated_at: 3000 } }] }));
+    expect(json.changes.items[0]).toMatchObject({ checked_by: "sam", name: "Hafermilch" });
+
+    ({ json } = await sync(TOM, { since: 0, ops: [{ table: "items", row: { ...checked, checked: false, checked_at: null, updated_at: 4000 } }] }));
+    expect(json.changes.items[0]).toMatchObject({ checked_by: null });
+  });
+
   test("deletes are tombstones and still sync", async () => {
     const milk = item();
     await sync(TOM, { since: 0, ops: [{ table: "items", row: milk }] });

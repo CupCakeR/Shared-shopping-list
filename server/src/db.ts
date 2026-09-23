@@ -57,6 +57,10 @@ const MIGRATIONS = [
   CREATE TABLE meta (key TEXT PRIMARY KEY, value INTEGER NOT NULL);
   INSERT INTO meta (key, value) VALUES ('rev', 0);
   `,
+  // Who checked an item off, for the history view. Unknown (NULL) for items checked before this existed.
+  `
+  ALTER TABLE items ADD COLUMN checked_by TEXT REFERENCES users(id);
+  `,
 ];
 
 export function openDb(path: string): Database {

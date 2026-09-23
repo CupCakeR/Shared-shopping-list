@@ -1,4 +1,4 @@
-import { signal } from "@preact/signals";
+import { computed, signal } from "@preact/signals";
 import { DEFAULT_LIST_ID, type Item, type List } from "../../shared/types";
 import { type LocalDb, openLocal } from "./local";
 
@@ -7,6 +7,19 @@ export const lists = signal<List[]>([]);
 export const items = signal<Item[]>([]);
 export const pendingCount = signal(0);
 export const syncStatus = signal<"idle" | "syncing" | "offline" | "error">("idle");
+
+/** Default list first, then the rest in creation order. */
+export const activeLists = computed(() =>
+  lists.value
+    .filter((l) => !l.deleted_at)
+    .sort((a, b) => Number(b.is_default) - Number(a.is_default) || a.created_at - b.created_at),
+);
+
+/** The general list everything goes on. Always present (placeholder until the first sync). */
+export const defaultList = computed(() => lists.value.find((l) => l.id === DEFAULT_LIST_ID)!);
+
+/** Store-specific lists. */
+export const storeLists = computed(() => activeLists.value.filter((l) => !l.is_default));
 
 const listMap = new Map<string, List>();
 const itemMap = new Map<string, Item>();

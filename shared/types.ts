@@ -27,6 +27,8 @@ export interface Item {
   category: string | null;
   checked: boolean;
   checked_at: number | null;
+  /** Set by the server to whoever checked it off. */
+  checked_by: string | null;
   added_by: string;
   created_at: number;
   updated_at: number;
@@ -34,9 +36,9 @@ export interface Item {
   rev: number;
 }
 
-/** Fields the client may set. is_default, added_by and rev are server-controlled. */
+/** Fields the client may set. is_default, added_by, checked_by and rev are server-controlled. */
 export type ListInput = Pick<List, "id" | "name" | "created_at" | "updated_at" | "deleted_at">;
-export type ItemInput = Omit<Item, "added_by" | "rev">;
+export type ItemInput = Omit<Item, "added_by" | "checked_by" | "rev">;
 
 export type Op = { table: "lists"; row: ListInput } | { table: "items"; row: ItemInput };
 

@@ -11,5 +11,5 @@
     "noEmit": true,
     "verbatimModuleSyntax": true
   },
-  "include": ["server", "shared"]
+  "include": ["server", "shared", "client/test"]
 }
