@@ -2,17 +2,20 @@ import { beforeEach, describe, expect, test } from "bun:test";
 import { createApp } from "../src/app";
 import { parseUsers } from "../src/config";
 import { DEFAULT_LIST_ID, openDb, syncUsers } from "../src/db";
+import { Events } from "../src/events";
 import type { Item, List, SyncResponse } from "../src/sync";
 
 const TOM = "tom-key";
 const SAM = "sam-key";
 
 let app: ReturnType<typeof createApp>;
+let events: Events;
 
 beforeEach(() => {
   const db = openDb(":memory:");
   syncUsers(db, parseUsers(`Tom:${TOM},Sam:${SAM}`));
-  app = createApp(db);
+  events = new Events();
+  app = createApp(db, events);
 });
 
 async function sync(key: string, body: unknown) {
@@ -197,6 +200,53 @@ describe("sync", () => {
       body: "not json",
     });
     expect(res.status).toBe(400);
+  });
+});
+
+describe("events", () => {
+  /** Opens the stream and returns a reader for its SSE messages. */
+  async function connect(key: string) {
+    const res = await app.request(`/api/events?key=${key}`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Content-Type")).toBe("text/event-stream");
+    const reader = res.body!.pipeThrough(new TextDecoderStream()).getReader();
+    return { next: async () => (await reader.read()).value, close: () => reader.cancel() };
+  }
+
+  test("needs a key, from the query", async () => {
+    expect((await app.request("/api/events")).status).toBe(401);
+    expect((await app.request("/api/events?key=nope")).status).toBe(401);
+    // Only the event stream takes the key from the query.
+    expect((await app.request(`/api/me?key=${TOM}`)).status).toBe(401);
+  });
+
+  test("sends the current rev on connect and after changes", async () => {
+    const { json } = await sync(TOM, { since: 0, ops: [] });
+    const stream = await connect(SAM);
+    expect(await stream.next()).toBe(`event: changed\ndata: ${json.rev}\n\n`);
+
+    const res = await sync(TOM, { since: json.rev, ops: [{ table: "items", row: item() }] });
+    expect(await stream.next()).toBe(`event: changed\ndata: ${res.json.rev}\n\n`);
+    await stream.close();
+  });
+
+  test("stays quiet when a sync changes nothing", async () => {
+    const stream = await connect(SAM);
+    await stream.next();
+    const published: number[] = [];
+    events.subscribe((rev) => published.push(rev));
+    await sync(TOM, { since: 0, ops: [] });
+    expect(published).toEqual([]);
+    await stream.close();
+  });
+
+  test("unsubscribes when the client disconnects", async () => {
+    const stream = await connect(TOM);
+    await stream.next();
+    expect(events.size).toBe(1);
+    await stream.close();
+    await Bun.sleep(0);
+    expect(events.size).toBe(0);
   });
 });
 
