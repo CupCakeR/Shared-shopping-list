@@ -35,8 +35,8 @@ async function save(changes: { lists?: List[]; items?: Item[] }) {
 
 // --- items --------------------------------------------------------------------
 
-/** Adds an item, unless one with the same name is already open on the list. */
-export function addItem(listId: string, name: string) {
+/** Adds an item, unless one with the same name is already open on the list. Resolves to the new item. */
+export async function addItem(listId: string, name: string): Promise<Item | undefined> {
   const trimmed = name.trim();
   const user = session.value?.user;
   if (!trimmed || !user) return;
@@ -45,26 +45,24 @@ export function addItem(listId: string, name: string) {
   if (duplicate) return;
 
   const now = Date.now();
-  return save({
-    items: [
-      {
-        id: crypto.randomUUID(),
-        list_id: listId,
-        name: trimmed,
-        quantity: null,
-        note: null,
-        category: null,
-        checked: false,
-        checked_at: null,
-        checked_by: null,
-        added_by: user.id, // optimistic, the server sets the real value
-        created_at: now,
-        updated_at: now,
-        deleted_at: null,
-        rev: 0,
-      },
-    ],
-  });
+  const item: Item = {
+    id: crypto.randomUUID(),
+    list_id: listId,
+    name: trimmed,
+    quantity: null,
+    note: null,
+    category: null,
+    checked: false,
+    checked_at: null,
+    checked_by: null,
+    added_by: user.id, // optimistic, the server sets the real value
+    created_at: now,
+    updated_at: now,
+    deleted_at: null,
+    rev: 0,
+  };
+  await save({ items: [item] });
+  return item;
 }
 
 export function setChecked(item: Item, checked: boolean) {
