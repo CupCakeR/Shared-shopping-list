@@ -1,4 +1,7 @@
 import { beforeEach, describe, expect, test } from "bun:test";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { createApp } from "../src/app";
 import { parseUsers } from "../src/config";
 import { DEFAULT_LIST_ID, openDb, syncUsers } from "../src/db";
@@ -15,7 +18,7 @@ beforeEach(() => {
   const db = openDb(":memory:");
   syncUsers(db, parseUsers(`Tom:${TOM},Sam:${SAM}`));
   events = new Events();
-  app = createApp(db, events);
+  app = createApp(db, { events });
 });
 
 async function sync(key: string, body: unknown) {
@@ -248,6 +251,52 @@ describe("events", () => {
     await stream.close();
     await Bun.sleep(0);
     expect(events.size).toBe(0);
+  });
+});
+
+describe("client files", () => {
+  let client: ReturnType<typeof createApp>;
+
+  beforeEach(() => {
+    const dir = mkdtempSync(join(tmpdir(), "client-"));
+    mkdirSync(join(dir, "assets"));
+    writeFileSync(join(dir, "index.html"), "<!doctype html>app");
+    writeFileSync(join(dir, "sw.js"), "// sw");
+    writeFileSync(join(dir, "assets", "index-abc.js"), "// js");
+    const db = openDb(":memory:");
+    syncUsers(db, parseUsers(`Tom:${TOM}`));
+    client = createApp(db, { clientDir: dir });
+  });
+
+  test("serves files, hashed assets cached for good, the rest revalidated", async () => {
+    const asset = await client.request("/assets/index-abc.js");
+    expect(await asset.text()).toBe("// js");
+    expect(asset.headers.get("Cache-Control")).toContain("immutable");
+
+    const sw = await client.request("/sw.js");
+    expect(await sw.text()).toBe("// sw");
+    expect(sw.headers.get("Cache-Control")).toBe("no-cache");
+  });
+
+  test("answers app routes with index.html", async () => {
+    for (const path of ["/", "/l/some-list", "/l/some-list/verlauf"]) {
+      const res = await client.request(path);
+      expect(await res.text()).toBe("<!doctype html>app");
+      expect(res.headers.get("Cache-Control")).toBe("no-cache");
+    }
+  });
+
+  test("leaves /api alone", async () => {
+    expect((await client.request("/api/nope")).status).toBe(401);
+    expect((await client.request("/api/health")).status).toBe(200);
+    expect(await (await client.request("/api/me", { headers: { Authorization: `Bearer ${TOM}` } })).json()).toMatchObject({
+      user: { id: "tom" },
+    });
+  });
+
+  test("doesn't serve files outside the directory", async () => {
+    const res = await client.request("/../../etc/passwd");
+    expect(await res.text()).not.toContain("root:");
   });
 });
 

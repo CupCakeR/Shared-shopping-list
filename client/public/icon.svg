@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Full bleed, so it also works as a maskable icon. The bag stays inside the 80 % safe zone. -->
+  <rect width="512" height="512" fill="#03a14a" />
+  <g transform="translate(100 96) scale(13)" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M5 8h14l-1.2 11.2a2 2 0 0 1-2 1.8H8.2a2 2 0 0 1-2-1.8L5 8z" />
+    <path d="M9 8V6.5a3 3 0 0 1 6 0V8" />
+    <path d="M9.25 14.25l2 2 3.5-4" />
+  </g>
+</svg>

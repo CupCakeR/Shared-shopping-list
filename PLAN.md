@@ -150,7 +150,7 @@ POST /api/sync
 - Multi-stage Dockerfile: build the client with Vite → `oven/bun` runtime image serving `dist/` + API.
 - Volume: mount a **directory** (e.g. `/mnt/user/appdata/shopping-list` → `/data`). SQLite creates
   `-wal`/`-shm` files next to the DB.
-- Env: `USERS`, `VAPID_*`, `DB_PATH=/data/db.sqlite`, `PORT`.
+- Env: `USERS`, `VAPID_*`, `DB_PATH=/data/db.sqlite`, `PORT`, `CLIENT_DIR` (built client, default `./dist`).
 - nginx location for SSE:
   ```nginx
   location /api/events {

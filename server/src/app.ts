@@ -8,9 +8,11 @@ import { events as eventsRoute } from "./routes/events";
 import { health } from "./routes/health";
 import { me } from "./routes/me";
 import { sync } from "./routes/sync";
+import { serveClient } from "./static";
 import { ValidationError } from "./sync";
 
-export function createApp(db: Database, events = new Events()) {
+/** clientDir: the built client (`vite build`), served next to the API. Left out in tests and dev, where Vite serves it. */
+export function createApp(db: Database, { events = new Events(), clientDir }: { events?: Events; clientDir?: string } = {}) {
   const api = new Hono<Env>()
     .use(auth)
     .get("/me", me)
@@ -25,6 +27,7 @@ export function createApp(db: Database, events = new Events()) {
     })
     .get("/api/health", health)
     .route("/api", api);
+  if (clientDir) app.use(...serveClient(clientDir));
 
   app.onError((err, c) => {
     if (err instanceof ValidationError) return c.json({ error: err.message }, 400);

@@ -13,5 +13,7 @@
     "noEmit": true,
     "verbatimModuleSyntax": true
   },
-  "include": ["src", "../shared"]
+  "include": ["src", "../shared"],
+  // The service worker has WebWorker types instead of DOM, see tsconfig.sw.json.
+  "exclude": ["src/sw.ts"]
 }

@@ -7,6 +7,7 @@ export interface UserConfig {
 export interface Config {
   port: number;
   dbPath: string;
+  clientDir: string;
   users: UserConfig[];
 }
 
@@ -36,6 +37,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
   return {
     port: Number(env.PORT ?? 3000),
     dbPath: env.DB_PATH ?? "./data/db.sqlite",
+    clientDir: env.CLIENT_DIR ?? "./dist",
     users: parseUsers(env.USERS ?? ""),
   };
 }

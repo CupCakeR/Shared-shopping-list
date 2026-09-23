@@ -29,3 +29,6 @@ window.addEventListener("offline", () => (syncStatus.value = "offline"));
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") runSync();
 });
+
+// Only in builds: in dev, Vite serves the files itself and a cache would get in the way.
+if (import.meta.env.PROD && "serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js");
