@@ -206,18 +206,19 @@ describe("sync", () => {
 describe("events", () => {
   /** Opens the stream and returns a reader for its SSE messages. */
   async function connect(key: string) {
-    const res = await app.request(`/api/events?key=${key}`);
+    const res = await app.request("/api/events", { headers: { Cookie: `key=${key}` } });
     expect(res.status).toBe(200);
     expect(res.headers.get("Content-Type")).toBe("text/event-stream");
     const reader = res.body!.pipeThrough(new TextDecoderStream()).getReader();
     return { next: async () => (await reader.read()).value, close: () => reader.cancel() };
   }
 
-  test("needs a key, from the query", async () => {
+  test("needs a key, from the cookie", async () => {
     expect((await app.request("/api/events")).status).toBe(401);
-    expect((await app.request("/api/events?key=nope")).status).toBe(401);
-    // Only the event stream takes the key from the query.
-    expect((await app.request(`/api/me?key=${TOM}`)).status).toBe(401);
+    expect((await app.request("/api/events", { headers: { Cookie: "key=nope" } })).status).toBe(401);
+    expect((await app.request(`/api/events?key=${TOM}`)).status).toBe(401);
+    // Only the event stream takes the key from the cookie.
+    expect((await app.request("/api/me", { headers: { Cookie: `key=${TOM}` } })).status).toBe(401);
   });
 
   test("sends the current rev on connect and after changes", async () => {

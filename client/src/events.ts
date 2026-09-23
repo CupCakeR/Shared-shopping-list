@@ -13,20 +13,31 @@ export function startLiveUpdates() {
   effect(() => {
     const key = session.value?.key;
     close();
-    if (key && document.visibilityState === "visible") open(key);
+    setCookie(key);
+    if (key && document.visibilityState === "visible") open();
   });
   // Phones kill background connections anyway, so drop it ourselves and reconnect on return.
   document.addEventListener("visibilitychange", () => {
     const key = session.value?.key;
     if (document.visibilityState !== "visible") close();
-    else if (key && !source) open(key);
+    else if (key && !source) open();
   });
 }
 
-function open(key: string) {
+/**
+ * EventSource can't send the Authorization header, so the key goes in a cookie only sent to the stream.
+ * Set from here rather than by the server: the key is in localStorage anyway, so HttpOnly wouldn't hide it,
+ * and the stream doesn't have to wait for another request to set it.
+ */
+function setCookie(key: string | undefined) {
+  const attrs = `Path=/api/events; SameSite=Strict${location.protocol === "https:" ? "; Secure" : ""}`;
+  document.cookie = key ? `key=${encodeURIComponent(key)}; Max-Age=31536000; ${attrs}` : `key=; Max-Age=0; ${attrs}`;
+}
+
+function open() {
   // EventSource reconnects on its own after network errors. A 401 closes it for good,
   // and the next sync logs out.
-  source = new EventSource(`/api/events?key=${encodeURIComponent(key)}`);
+  source = new EventSource("/api/events");
   source.addEventListener("changed", async (e) => {
     const rev = Number(e.data);
     const cursor = (await getLocal().get("meta", "cursor")) ?? 0;

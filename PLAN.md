@@ -40,7 +40,7 @@ phone (PWA)                                   server (Bun + Hono)
 
 - Users are defined via env, e.g. `USERS="tom:<key>,other:<key>"`, and seeded into `users` on startup.
 - Client stores the key in `localStorage` and sends `Authorization: Bearer <key>` on every request.
-  SSE: `EventSource` can't set headers, so it passes `?key=` (or use a cookie set on login).
+  SSE: `EventSource` can't set headers, so the client puts the key in a cookie scoped to `/api/events`.
 - Simple key-entry screen **inside the installed PWA** (iOS keeps Safari and home-screen storage separate).
 
 ## Data model
