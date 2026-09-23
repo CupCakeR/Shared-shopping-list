@@ -11,6 +11,8 @@ export interface User {
 export interface List {
   id: string;
   name: string;
+  /** A brand id or "letter" (see client/src/brands.ts); null picks one from the name. */
+  icon: string | null;
   is_default: boolean;
   created_at: number;
   updated_at: number;
@@ -37,7 +39,7 @@ export interface Item {
 }
 
 /** Fields the client may set. is_default, added_by, checked_by and rev are server-controlled. */
-export type ListInput = Pick<List, "id" | "name" | "created_at" | "updated_at" | "deleted_at">;
+export type ListInput = Pick<List, "id" | "name" | "icon" | "created_at" | "updated_at" | "deleted_at">;
 export type ItemInput = Omit<Item, "added_by" | "checked_by" | "rev">;
 
 export type Op = { table: "lists"; row: ListInput } | { table: "items"; row: ItemInput };

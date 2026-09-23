@@ -15,7 +15,8 @@
     "@preact/signals": "^2.11.2",
     "hono": "^4.13.8",
     "idb": "^8.0.3",
-    "preact": "^10.29.8"
+    "preact": "^10.29.8",
+    "simple-icons": "^16.32.0"
   },
   "devDependencies": {
     "@preact/preset-vite": "^2.10.6",

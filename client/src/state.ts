@@ -28,6 +28,7 @@ const itemMap = new Map<string, Item>();
 const PLACEHOLDER_DEFAULT: List = {
   id: DEFAULT_LIST_ID,
   name: "Einkaufsliste",
+  icon: null,
   is_default: true,
   created_at: 0,
   updated_at: 0,

@@ -152,6 +152,15 @@ describe("sync", () => {
     expect(json.changes.items[0]).toMatchObject({ list_id: list.id, name: "Schrauben" });
   });
 
+  test("a list's icon syncs and can be reset to automatic", async () => {
+    const list = { id: crypto.randomUUID(), name: "Supermarkt", icon: "rewe", created_at: 1000, updated_at: 1000 };
+    let { json } = await sync(TOM, { since: 0, ops: [{ table: "lists", row: list }] });
+    expect(json.changes.lists.find((l: List) => l.id === list.id)).toMatchObject({ icon: "rewe" });
+
+    ({ json } = await sync(SAM, { since: 0, ops: [{ table: "lists", row: { ...list, icon: null, updated_at: 2000 } }] }));
+    expect(json.changes.lists.find((l: List) => l.id === list.id)).toMatchObject({ icon: null });
+  });
+
   test("items for unknown lists are rejected, not retried forever", async () => {
     const orphan = item({ list_id: "nope" });
     const { status, json } = await sync(TOM, { since: 0, ops: [{ table: "items", row: orphan }] });

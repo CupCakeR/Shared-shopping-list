@@ -2,7 +2,7 @@ import { useComputed } from "@preact/signals";
 import type { Item } from "../../../shared/types";
 import { addItem } from "../actions";
 import { groupHistory } from "../history";
-import { back } from "../router";
+import { back, historyPath } from "../router";
 import { activeLists, items } from "../state";
 import { normalize } from "../suggest";
 import { BackIcon, CheckIcon, IconButton, PlusIcon, SyncBadge, TopBar, userName } from "./common";
@@ -21,7 +21,11 @@ export function HistoryView({ listId }: { listId: string }) {
   );
 
   return (
-    <div class="mx-auto flex min-h-dvh max-w-xl flex-col">
+    <div
+      data-morph="page"
+      data-morph-key={historyPath(listId)}
+      class="mx-auto flex min-h-dvh max-w-xl flex-col bg-stone-50 dark:bg-stone-950"
+    >
       <TopBar>
         <div class="flex items-center gap-2">
           <IconButton label="Zurück" onClick={back}>

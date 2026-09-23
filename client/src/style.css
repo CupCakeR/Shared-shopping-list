@@ -26,3 +26,91 @@
     @apply bg-stone-50 text-stone-900 antialiased dark:bg-stone-950 dark:text-stone-100;
   }
 }
+
+/* Page changes (see router.ts): the whole page pushes left/right by direction, like a native stack.
+   Reduced motion keeps the browser's default crossfade. */
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 320ms;
+    animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  :root[data-nav="forward"]::view-transition-old(root) {
+    animation-name: vt-out-left;
+  }
+  :root[data-nav="forward"]::view-transition-new(root) {
+    animation-name: vt-in-right;
+  }
+  :root[data-nav="back"]::view-transition-old(root) {
+    animation-name: vt-out-right;
+  }
+  :root[data-nav="back"]::view-transition-new(root) {
+    animation-name: vt-in-left;
+  }
+
+  /* One level deeper: the tapped card/button grows into the page (and back), a store name into the title; the rest crossfades. */
+  :root[data-nav="morph"]::view-transition-group(*),
+  :root[data-nav="morph"]::view-transition-old(*),
+  :root[data-nav="morph"]::view-transition-new(*) {
+    animation-duration: 380ms;
+    animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  /* The page snapshot is much taller than the card or button; keep it inside the growing box. */
+  ::view-transition-group(morph-page) {
+    overflow: clip;
+  }
+
+  /* Checking off: the row glides into "Erledigt" (and back), cards resize, everything else shifts along. */
+  :root[data-nav="items"]::view-transition-group(*) {
+    animation-duration: 300ms;
+    animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  /* Rows scrolled under the sticky top bar stay under it while they move. */
+  ::view-transition-group(topbar) {
+    z-index: 1;
+  }
+}
+
+@keyframes vt-out-left {
+  to {
+    translate: -100% 0;
+  }
+}
+@keyframes vt-in-right {
+  from {
+    translate: 100% 0;
+  }
+}
+@keyframes vt-out-right {
+  to {
+    translate: 100% 0;
+  }
+}
+@keyframes vt-in-left {
+  from {
+    translate: -100% 0;
+  }
+}
+
+/* Dialogs (components/Dialog.tsx) pop in; reduced motion just shows them. */
+@media (prefers-reduced-motion: no-preference) {
+  dialog[open] {
+    animation: dialog-in 220ms cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  dialog[open]::backdrop {
+    animation: fade-in 220ms ease-out;
+  }
+}
+
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    scale: 0.95;
+    translate: 0 0.75rem;
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}

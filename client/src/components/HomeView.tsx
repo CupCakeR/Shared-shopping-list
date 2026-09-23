@@ -1,10 +1,11 @@
 import type { List } from "../../../shared/types";
-import { createList } from "../actions";
+import { useState } from "preact/hooks";
 import { historyPath, listPath, navigate } from "../router";
 import { defaultList, storeLists } from "../state";
 import { AddItem } from "./AddItem";
-import { Avatar, HistoryIcon, IconButton, PlusIcon, SyncBadge, TopBar } from "./common";
+import { Avatar, HistoryIcon, IconButton, PlusIcon, StoreBadge, SyncBadge, TopBar } from "./common";
 import { ItemSections, SectionTitle, openItemsOf } from "./Items";
+import { StoreDialog } from "./StoreDialog";
 
 /** `/`: the general list, with the store lists as cards above it. */
 export function HomeView() {
@@ -21,7 +22,7 @@ export function HomeView() {
           </div>
           <div class="flex shrink-0 items-center gap-1.5">
             <SyncBadge />
-            <IconButton label="Verlauf" onClick={() => navigate(historyPath(list.id))}>
+            <IconButton label="Verlauf" morphKey={historyPath(list.id)} onClick={() => navigate(historyPath(list.id))}>
               <HistoryIcon />
             </IconButton>
             <Avatar />
@@ -47,11 +48,7 @@ export function HomeView() {
 }
 
 function Stores() {
-  async function create() {
-    const name = prompt("Name des Ladens, z. B. Aldi oder dm");
-    const list = name ? await createList(name) : undefined;
-    if (list) navigate(listPath(list.id));
-  }
+  const [creating, setCreating] = useState(false);
 
   return (
     <section class="mb-6">
@@ -61,13 +58,14 @@ function Stores() {
           <StoreCard key={list.id} list={list} />
         ))}
         <button
-          onClick={create}
+          onClick={() => setCreating(true)}
           class="flex min-h-20 items-center justify-center gap-1.5 rounded-2xl border-2 border-dashed border-stone-300 text-sm font-medium text-stone-500 transition hover:border-accent hover:text-accent active:scale-[0.98] dark:border-stone-700"
         >
           <PlusIcon class="size-4" />
           Neuer Laden
         </button>
       </div>
+      {creating && <StoreDialog onClose={() => setCreating(false)} />}
     </section>
   );
 }
@@ -77,10 +75,15 @@ function StoreCard({ list }: { list: List }) {
   return (
     <button
       onClick={() => navigate(listPath(list.id))}
+      data-morph="page"
+      data-morph-key={listPath(list.id)}
       class="flex min-h-20 min-w-0 flex-col rounded-2xl bg-white p-3.5 text-left shadow-sm ring-1 ring-stone-200/70 transition active:scale-[0.98] dark:bg-stone-900 dark:ring-stone-800"
     >
-      <div class="flex w-full items-baseline justify-between gap-2">
-        <span class="truncate font-semibold">{list.name}</span>
+      <div class="flex w-full items-center justify-between gap-2">
+        <span data-morph="title" data-morph-key={listPath(list.id)} class="flex min-w-0 items-center gap-2">
+          <StoreBadge name={list.name} icon={list.icon} size="sm" />
+          <span class="truncate font-semibold">{list.name}</span>
+        </span>
         {open.length > 0 && (
           <span class="shrink-0 rounded-full bg-accent/15 px-2 py-0.5 text-xs font-semibold text-accent">{open.length}</span>
         )}

@@ -61,6 +61,10 @@ const MIGRATIONS = [
   `
   ALTER TABLE items ADD COLUMN checked_by TEXT REFERENCES users(id);
   `,
+  // Store icon picked in the app. NULL = derived from the name on the client.
+  `
+  ALTER TABLE lists ADD COLUMN icon TEXT;
+  `,
 ];
 
 export function openDb(path: string): Database {

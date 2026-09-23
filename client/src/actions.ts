@@ -12,8 +12,9 @@ function itemOp({ added_by: _, checked_by: __, rev: ___, ...row }: Item): Op {
   return { table: "items", row: row satisfies ItemInput };
 }
 
-function listOp({ id, name, created_at, updated_at, deleted_at }: List): Op {
-  return { table: "lists", row: { id, name, created_at, updated_at, deleted_at } satisfies ListInput };
+function listOp({ id, name, icon, created_at, updated_at, deleted_at }: List): Op {
+  // Lists stored before icons existed have no icon field locally.
+  return { table: "lists", row: { id, name, icon: icon ?? null, created_at, updated_at, deleted_at } satisfies ListInput };
 }
 
 /** Writes rows locally and queues them for sync, in one IndexedDB transaction. */
@@ -98,13 +99,14 @@ export function clearChecked(listId: string) {
 
 // --- lists --------------------------------------------------------------------
 
-export async function createList(name: string): Promise<List | undefined> {
+export async function createList(name: string, icon: string | null): Promise<List | undefined> {
   const trimmed = name.trim();
   if (!trimmed) return;
   const now = Date.now();
   const list: List = {
     id: crypto.randomUUID(),
     name: trimmed,
+    icon,
     is_default: false,
     created_at: now,
     updated_at: now,
@@ -115,10 +117,10 @@ export async function createList(name: string): Promise<List | undefined> {
   return list;
 }
 
-export function renameList(list: List, name: string) {
+export function updateList(list: List, { name, icon }: { name: string; icon: string | null }) {
   const trimmed = name.trim();
-  if (!trimmed || trimmed === list.name) return;
-  return save({ lists: [{ ...list, name: trimmed, updated_at: stamp(list) }] });
+  if (!trimmed || (trimmed === list.name && icon === (list.icon ?? null))) return;
+  return save({ lists: [{ ...list, name: trimmed, icon, updated_at: stamp(list) }] });
 }
 
 /** Soft-deletes the list. Its items stay in the database, so their names keep feeding suggestions. */

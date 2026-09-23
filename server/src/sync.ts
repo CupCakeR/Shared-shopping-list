@@ -52,6 +52,7 @@ function parseOp(op: unknown, path: string): Op {
       row: {
         id: str(r, "id", p, 64),
         name: str(r, "name", p, 100),
+        icon: optStr(r, "icon", p, 32),
         created_at: time(r, "created_at", p),
         updated_at: time(r, "updated_at", p),
         deleted_at: optTime(r, "deleted_at", p),
@@ -120,10 +121,11 @@ export function applySync(
   const listExists = db.query("SELECT 1 FROM lists WHERE id = $id");
 
   const upsertList = db.query(
-    `INSERT INTO lists (id, name, is_default, created_at, updated_at, deleted_at, rev)
-     VALUES ($id, $name, 0, $created_at, $updated_at, $deleted_at, $rev)
+    `INSERT INTO lists (id, name, icon, is_default, created_at, updated_at, deleted_at, rev)
+     VALUES ($id, $name, $icon, 0, $created_at, $updated_at, $deleted_at, $rev)
      ON CONFLICT(id) DO UPDATE SET
        name       = excluded.name,
+       icon       = excluded.icon,
        updated_at = excluded.updated_at,
        deleted_at = CASE WHEN lists.is_default THEN NULL ELSE excluded.deleted_at END,
        rev        = excluded.rev`,
