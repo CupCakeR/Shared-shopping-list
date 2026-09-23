@@ -1,7 +1,7 @@
 import type { ComponentChildren } from "preact";
 import { brandOf } from "../brands";
 import { ConfirmDialog } from "./Dialog";
-import { useState } from "preact/hooks";
+import { useEffect, useState } from "preact/hooks";
 import { logout, session } from "../session";
 import { pendingCount, syncStatus } from "../state";
 
@@ -85,16 +85,27 @@ export function Avatar() {
   );
 }
 
+/** Fades in while syncing, offline or failed, and out once everything is synced. */
 export function SyncBadge() {
   const status = syncStatus.value;
   const pending = pendingCount.value;
-  if (status === "idle" && pending === 0) return null;
+  const visible = status !== "idle" || pending > 0;
+  // Stays mounted after `visible` turns false, until the fade-out is done.
+  const [mounted, setMounted] = useState(visible);
+  useEffect(() => {
+    if (visible) return setMounted(true);
+    const timer = setTimeout(() => setMounted(false), 300);
+    return () => clearTimeout(timer);
+  }, [visible]);
+  if (!visible && !mounted) return null;
 
   const failed = status === "offline" || status === "error";
   const label = status === "offline" ? "Offline" : status === "error" ? "Sync fehlgeschlagen" : "Synchronisiere";
   return (
     <span
-      class={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium whitespace-nowrap ${
+      class={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium whitespace-nowrap transition-opacity duration-300 starting:opacity-0 motion-reduce:transition-none ${
+        visible ? "opacity-100" : "opacity-0"
+      } ${
         failed
           ? "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
           : "bg-stone-200 text-stone-600 dark:bg-stone-800 dark:text-stone-300"
@@ -121,6 +132,7 @@ export const CheckIcon = (p: { class?: string }) => <Svg {...p}><path d="M5 12.5
 export const ChevronDownIcon = (p: { class?: string }) => <Svg {...p}><path d="M6 9l6 6 6-6" /></Svg>;
 export const BackIcon = (p: { class?: string }) => <Svg {...p}><path d="M15 18l-6-6 6-6" /></Svg>;
 export const PencilIcon = (p: { class?: string }) => <Svg {...p}><path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4" /></Svg>;
+export const UndoIcon = (p: { class?: string }) => <Svg {...p}><path d="M9 14L4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" /></Svg>;
 export const HistoryIcon = (p: { class?: string }) => (
   <Svg {...p}>
     <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
