@@ -1,6 +1,6 @@
-import { useState } from "preact/hooks";
+import { useRef, useState } from "preact/hooks";
 import { back, historyPath, listPath, navigate } from "../router";
-import { activeLists, defaultList } from "../state";
+import { activeLists, defaultList, items } from "../state";
 import { AddItem } from "./AddItem";
 import { BackIcon, HistoryIcon, IconButton, PencilIcon, StoreBadge, SyncBadge, TopBar } from "./common";
 import { Card, ItemSections, SectionTitle, openItemsOf } from "./Items";
@@ -9,11 +9,16 @@ import { StoreDialog } from "./StoreDialog";
 /** `/l/:id`: a store's own list, plus what's still open on the general list (you can get that anywhere). */
 export function StoreView({ listId }: { listId: string }) {
   const [editing, setEditing] = useState(false);
+  // General items seen open on this page. They stay (crossed off) once checked, instead of vanishing.
+  const seen = useRef(new Set<string>()).current;
   const list = activeLists.value.find((l) => l.id === listId);
   if (!list) return <NotFound />;
 
   const general = openItemsOf(defaultList.value.id);
-
+  for (const i of general) seen.add(i.id);
+  const shown = items.value
+    .filter((i) => i.list_id === defaultList.value.id && !i.deleted_at && (!i.checked || seen.has(i.id)))
+    .sort((a, b) => a.created_at - b.created_at);
 
   return (
     // Opaque so the page covers home while it grows out of the store card.
@@ -41,12 +46,12 @@ export function StoreView({ listId }: { listId: string }) {
       <main class="flex-1 px-4 pb-[max(2rem,env(safe-area-inset-bottom))]">
         <ItemSections listId={list.id} empty={`Noch nichts speziell für ${list.name}`} />
 
-        {general.length > 0 && (
+        {shown.length > 0 && (
           <section class="mt-8">
             <SectionTitle>
               {defaultList.value.name} · {general.length}
             </SectionTitle>
-            <Card items={general} vtName="card-general" />
+            <Card items={shown} vtName="card-general" />
           </section>
         )}
       </main>
