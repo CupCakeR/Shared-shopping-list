@@ -164,6 +164,18 @@ POST /api/sync
   ```
 - Server sends an SSE comment heartbeat every ~25 s to keep the connection alive through proxies.
 
+### Image and Unraid
+
+- `.github/workflows/image.yml`: every push to `master` runs typecheck + tests, then pushes
+  `ghcr.io/cupcaker/shared-shopping-list:latest` (plus a `sha-…` tag per commit to roll back to).
+- Unraid → Docker → Add Container:
+  - Repository: `ghcr.io/cupcaker/shared-shopping-list:latest`
+  - Port: container `3000` → a free host port
+  - Path: container `/data` → `/mnt/user/appdata/shopping-list`
+  - Variable: `USERS` (the `VAPID_*` ones once push exists)
+- Updating: "Check for Updates" on the Docker tab, then apply the update.
+- Phones need HTTPS for the service worker (and later push), so use the app through the nginx proxy, not the bare port.
+
 ## Milestones
 
 1. **Core**: server, schema, auth, default list, item CRUD on the client with IndexedDB, `/sync`.
