@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+/* Self-hosted Inter, Latin subset only (covers äöüß and €). */
+@font-face {
+  font-family: "Inter Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url("@fontsource-variable/inter/files/inter-latin-wght-normal.woff2") format("woff2-variations");
+}
+
+@theme {
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --color-accent: oklch(0.62 0.17 150);
+  --color-accent-strong: oklch(0.54 0.17 150);
+}
+
+@layer base {
+  :root {
+    color-scheme: light dark;
+  }
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply bg-stone-50 text-stone-900 antialiased dark:bg-stone-950 dark:text-stone-100;
+  }
+}
