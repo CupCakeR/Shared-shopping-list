@@ -1,10 +1,12 @@
 import { useComputed } from "@preact/signals";
 import type { ComponentChildren } from "preact";
+import { useState } from "preact/hooks";
 import type { Item } from "../../../shared/types";
-import { clearChecked, deleteItem, setChecked } from "../actions";
+import { clearChecked, deleteItem, isDuplicateName, renameItem, setChecked } from "../actions";
 import { items } from "../state";
 import { reducedMotion, transition } from "../transition";
-import { CheckIcon, XIcon, userName } from "./common";
+import { CheckIcon, PencilIcon, XIcon, userName } from "./common";
+import { Dialog, primaryButton, secondaryButton } from "./Dialog";
 
 export const openItemsOf = (listId: string) =>
   items.value.filter((i) => i.list_id === listId && !i.checked && !i.deleted_at).sort((a, b) => a.created_at - b.created_at);
@@ -84,6 +86,7 @@ function toggle(item: Item) {
 
 function Row({ item }: { item: Item }) {
   const addedBy = userName(item.added_by);
+  const [renaming, setRenaming] = useState(false);
   return (
     <li data-item-vt={`item-${item.id}`} class="flex items-center">
       <label class="flex min-w-0 flex-1 cursor-pointer items-center gap-3 py-3.5 pl-4 select-none">
@@ -103,6 +106,15 @@ function Row({ item }: { item: Item }) {
           </span>
         )}
       </label>
+      {!item.checked && (
+        <button
+          aria-label="Umbenennen"
+          onClick={() => setRenaming(true)}
+          class="flex size-11 shrink-0 items-center justify-center text-stone-300 transition hover:text-stone-600 dark:text-stone-600 dark:hover:text-stone-300"
+        >
+          <PencilIcon class="size-4.5" />
+        </button>
+      )}
       <button
         aria-label="Löschen"
         onClick={() => deleteItem(item)}
@@ -110,6 +122,45 @@ function Row({ item }: { item: Item }) {
       >
         <XIcon class="size-4.5 stroke-[2.5]" />
       </button>
+      {renaming && <RenameDialog item={item} onClose={() => setRenaming(false)} />}
     </li>
+  );
+}
+
+function RenameDialog({ item, onClose }: { item: Item; onClose: () => void }) {
+  const [name, setName] = useState(item.name);
+  const duplicate = isDuplicateName(item, name);
+
+  async function submit(e: Event) {
+    e.preventDefault();
+    if (!name.trim() || duplicate) return;
+    await renameItem(item, name);
+    onClose();
+  }
+
+  return (
+    <Dialog title="Artikel umbenennen" onClose={onClose}>
+      <form onSubmit={submit}>
+        <input
+          autoFocus
+          maxLength={200}
+          value={name}
+          onInput={(e) => setName(e.currentTarget.value)}
+          onFocus={(e) => e.currentTarget.select()}
+          enterkeyhint="done"
+          autocomplete="off"
+          class="w-full rounded-xl border border-stone-200 bg-white px-4 py-3 text-base outline-none transition focus:border-accent focus:ring-4 focus:ring-accent/15 dark:border-stone-800 dark:bg-stone-950"
+        />
+        {duplicate && <p class="mt-2 px-1 text-sm text-red-600 dark:text-red-400">Steht schon auf der Liste.</p>}
+        <div class="mt-5 flex justify-end gap-2">
+          <button type="button" onClick={onClose} class={secondaryButton}>
+            Abbrechen
+          </button>
+          <button disabled={!name.trim() || duplicate} class={primaryButton}>
+            Speichern
+          </button>
+        </div>
+      </form>
+    </Dialog>
   );
 }
