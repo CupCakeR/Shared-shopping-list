@@ -47,19 +47,29 @@ export function HomeView() {
   );
 }
 
+/** Stores with open items as cards; empty ones shrink to chips, so they stay reachable for adding items. */
 function Stores() {
   const [creating, setCreating] = useState(false);
+  const stocked = storeLists.value.filter((l) => openItemsOf(l.id).length > 0);
+  const empty = storeLists.value.filter((l) => openItemsOf(l.id).length === 0);
 
   return (
     <section class="mb-6">
       <SectionTitle>Läden</SectionTitle>
-      <div class="grid grid-cols-2 gap-2.5">
-        {storeLists.value.map((list) => (
-          <StoreCard key={list.id} list={list} />
+      {stocked.length > 0 && (
+        <div class="mb-2.5 grid grid-cols-2 gap-2.5">
+          {stocked.map((list) => (
+            <StoreCard key={list.id} list={list} />
+          ))}
+        </div>
+      )}
+      <div class="flex flex-wrap gap-2">
+        {empty.map((list) => (
+          <StoreChip key={list.id} list={list} />
         ))}
         <button
           onClick={() => setCreating(true)}
-          class="flex min-h-20 items-center justify-center gap-1.5 rounded-2xl border-2 border-dashed border-stone-300 text-sm font-medium text-stone-500 transition hover:border-accent hover:text-accent active:scale-[0.98] dark:border-stone-700"
+          class="flex items-center gap-1.5 rounded-full border-2 border-dashed border-stone-300 py-1 pr-3.5 pl-2.5 text-sm font-medium text-stone-500 transition hover:border-accent hover:text-accent active:scale-95 dark:border-stone-700"
         >
           <PlusIcon class="size-4" />
           Neuer Laden
@@ -67,6 +77,22 @@ function Stores() {
       </div>
       {creating && <StoreDialog onClose={() => setCreating(false)} />}
     </section>
+  );
+}
+
+function StoreChip({ list }: { list: List }) {
+  return (
+    <button
+      onClick={() => navigate(listPath(list.id))}
+      data-morph="page"
+      data-morph-key={listPath(list.id)}
+      class="flex min-w-0 items-center rounded-full bg-white py-1.5 pr-3.5 pl-1.5 text-sm font-medium shadow-sm ring-1 ring-stone-200/70 transition active:scale-95 dark:bg-stone-900 dark:ring-stone-800"
+    >
+      <span data-morph="title" data-morph-key={listPath(list.id)} class="flex min-w-0 items-center gap-2">
+        <StoreBadge name={list.name} icon={list.icon} size="sm" />
+        <span class="truncate">{list.name}</span>
+      </span>
+    </button>
   );
 }
 
@@ -84,12 +110,10 @@ function StoreCard({ list }: { list: List }) {
           <StoreBadge name={list.name} icon={list.icon} size="sm" />
           <span class="truncate font-semibold">{list.name}</span>
         </span>
-        {open.length > 0 && (
-          <span class="shrink-0 rounded-full bg-accent/15 px-2 py-0.5 text-xs font-semibold text-accent">{open.length}</span>
-        )}
+        <span class="shrink-0 rounded-full bg-accent/15 px-2 py-0.5 text-xs font-semibold text-accent">{open.length}</span>
       </div>
       <span class="mt-1 line-clamp-2 text-xs text-stone-500">
-        {open.length === 0 ? "Nichts zu holen" : open.map((i) => i.name).join(", ")}
+        {open.map((i) => i.name).join(", ")}
       </span>
     </button>
   );
