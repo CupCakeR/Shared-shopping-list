@@ -92,13 +92,14 @@
   }
 }
 
-/* Dialogs (components/Dialog.tsx) pop in; reduced motion just shows them. */
+/* Dialogs (components/Dialog.tsx) pop in. Reduced motion fades them, like page changes keep their crossfade. */
+dialog[open],
+dialog[open]::backdrop {
+  animation: fade-in 220ms ease-out;
+}
 @media (prefers-reduced-motion: no-preference) {
   dialog[open] {
     animation: dialog-in 220ms cubic-bezier(0.32, 0.72, 0, 1);
-  }
-  dialog[open]::backdrop {
-    animation: fade-in 220ms ease-out;
   }
 }
 
