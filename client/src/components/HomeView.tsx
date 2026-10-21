@@ -63,13 +63,13 @@ function Stores() {
           ))}
         </div>
       )}
-      <div class="flex flex-wrap gap-2">
+      <div class="flex flex-wrap gap-2.5">
         {empty.map((list) => (
           <StoreChip key={list.id} list={list} />
         ))}
         <button
           onClick={() => setCreating(true)}
-          class="flex items-center gap-1.5 rounded-full border-2 border-dashed border-stone-300 py-1 pr-3.5 pl-2.5 text-sm font-medium text-stone-500 transition hover:border-accent hover:text-accent active:scale-95 dark:border-stone-700"
+          class="flex items-center gap-1.5 rounded-xl border-2 border-dashed border-stone-300 py-1 pr-3.5 pl-2.5 text-sm font-medium text-stone-500 transition hover:border-accent hover:text-accent active:scale-95 dark:border-stone-700"
         >
           <PlusIcon class="size-4" />
           Neuer Laden
@@ -86,7 +86,7 @@ function StoreChip({ list }: { list: List }) {
       onClick={() => navigate(listPath(list.id))}
       data-morph="page"
       data-morph-key={listPath(list.id)}
-      class="flex min-w-0 items-center rounded-full bg-white py-1.5 pr-3.5 pl-1.5 text-sm font-medium shadow-sm ring-1 ring-stone-200/70 transition active:scale-95 dark:bg-stone-900 dark:ring-stone-800"
+      class="flex min-w-0 items-center rounded-xl bg-white p-1.5 pr-3.5 text-sm font-medium shadow-sm ring-1 ring-stone-200/70 transition active:scale-95 dark:bg-stone-900 dark:ring-stone-800"
     >
       <span data-morph="title" data-morph-key={listPath(list.id)} class="flex min-w-0 items-center gap-2">
         <StoreBadge name={list.name} icon={list.icon} size="sm" />
