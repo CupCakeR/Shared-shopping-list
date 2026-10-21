@@ -109,13 +109,14 @@ const toItem = (r: RawItem): Item => ({ ...r, checked: r.checked === 1 });
  * Applies the client's ops (last-write-wins per row on updated_at) and returns everything
  * that changed after `since`, plus the current server version of every row the client touched.
  * The latter corrects the client's optimistic state when one of its ops lost.
+ * `added`: ids of items this request created open, for the "added items" push.
  */
 export function applySync(
   db: Database,
   userId: string,
   req: SyncRequest,
   now = Date.now(),
-): { response: SyncResponse; changed: boolean } {
+): { response: SyncResponse; changed: boolean; added: string[] } {
   const getListStamp = db.query("SELECT updated_at FROM lists WHERE id = $id");
   const getItemStamp = db.query("SELECT updated_at FROM items WHERE id = $id");
   const listExists = db.query("SELECT 1 FROM lists WHERE id = $id");
@@ -155,6 +156,7 @@ export function applySync(
 
   return db.transaction(() => {
     const rejected: Rejected[] = [];
+    const added: string[] = [];
     const touched = { lists: new Set<string>(), items: new Set<string>() };
     let changed = false;
     const clamp = (t: number) => Math.min(t, now + MAX_CLOCK_SKEW_MS);
@@ -185,6 +187,7 @@ export function applySync(
           rev: nextRev(db),
         });
         changed = true;
+        if (!existing && !item.checked && !item.deleted_at) added.push(item.id);
       }
     }
 
@@ -202,6 +205,7 @@ export function applySync(
     return {
       response: { rev, changes: { lists: lists.map(toList), items: items.map(toItem) }, rejected },
       changed,
+      added,
     };
   })();
 }

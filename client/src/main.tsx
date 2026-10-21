@@ -7,6 +7,7 @@ import { session } from "./session";
 import { route } from "./router";
 import { initLocal, syncStatus } from "./state";
 import { startLiveUpdates } from "./events";
+import { startPush } from "./push";
 import { runSync } from "./sync";
 import "./style.css";
 
@@ -23,6 +24,7 @@ render(<App />, document.getElementById("app")!);
 
 runSync();
 startLiveUpdates();
+startPush();
 window.addEventListener("online", () => runSync());
 window.addEventListener("offline", () => (syncStatus.value = "offline"));
 // Phones kill background connections, so catch up whenever the app comes back.

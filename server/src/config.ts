@@ -4,11 +4,20 @@ export interface UserConfig {
   key: string;
 }
 
+export interface VapidConfig {
+  publicKey: string;
+  privateKey: string;
+  /** mailto: or https: contact, push services reach out there if something goes wrong. */
+  subject: string;
+}
+
 export interface Config {
   port: number;
   dbPath: string;
   clientDir: string;
   users: UserConfig[];
+  /** null: push is off, the app works without it. */
+  vapid: VapidConfig | null;
 }
 
 /** Parses `USERS="Tom:key1,Partner:key2"`. The id is the lowercased name. */
@@ -39,5 +48,16 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     dbPath: env.DB_PATH ?? "./data/db.sqlite",
     clientDir: env.CLIENT_DIR ?? "./dist",
     users: parseUsers(env.USERS ?? ""),
+    vapid: parseVapid(env),
   };
+}
+
+export function parseVapid(env: Record<string, string | undefined>): VapidConfig | null {
+  const { VAPID_PUBLIC_KEY: publicKey, VAPID_PRIVATE_KEY: privateKey, VAPID_SUBJECT: subject } = env;
+  if (!publicKey && !privateKey && !subject) return null;
+  if (!publicKey || !privateKey || !subject) {
+    throw new Error("VAPID: set all of VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY and VAPID_SUBJECT, or none");
+  }
+  if (!/^(mailto:|https:)/.test(subject)) throw new Error('VAPID_SUBJECT: expected "mailto:…" or "https://…"');
+  return { publicKey, privateKey, subject };
 }

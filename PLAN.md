@@ -172,9 +172,9 @@ POST /api/sync
   - Repository: `ghcr.io/cupcaker/shared-shopping-list:latest`
   - Port: container `3000` → a free host port
   - Path: container `/data` → `/mnt/user/appdata/shopping-list`
-  - Variable: `USERS` (the `VAPID_*` ones once push exists)
+  - Variables: `USERS`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`
 - Updating: "Check for Updates" on the Docker tab, then apply the update.
-- Phones need HTTPS for the service worker (and later push), so use the app through the nginx proxy, not the bare port.
+- Phones need HTTPS for the service worker and push, so use the app through the nginx proxy, not the bare port.
 
 ## Milestones
 

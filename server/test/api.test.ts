@@ -3,9 +3,10 @@ import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createApp } from "../src/app";
-import { parseUsers } from "../src/config";
+import { parseUsers, parseVapid } from "../src/config";
 import { DEFAULT_LIST_ID, openDb, syncUsers } from "../src/db";
 import { Events } from "../src/events";
+import { Push, type PushMessage, type SendOptions } from "../src/push";
 import type { Item, List, SyncResponse } from "../src/sync";
 
 const TOM = "tom-key";
@@ -254,6 +255,155 @@ describe("events", () => {
   });
 });
 
+describe("push", () => {
+  const DELAY = 20;
+  let sent: { endpoint: string; message: PushMessage; options: SendOptions }[];
+  /** Endpoint → status code the fake push service answers with. */
+  let failing: Map<string, number>;
+  let push: Push;
+
+  beforeEach(() => {
+    const db = openDb(":memory:");
+    syncUsers(db, parseUsers(`Tom:${TOM},Sam:${SAM}`));
+    sent = [];
+    failing = new Map();
+    push = new Push(
+      db,
+      {
+        publicKey: "public-key",
+        sender: async (sub, payload, options) => {
+          const status = failing.get(sub.endpoint);
+          if (status) throw Object.assign(new Error("push failed"), { statusCode: status });
+          sent.push({ endpoint: sub.endpoint, message: JSON.parse(payload), options });
+        },
+      },
+      DELAY,
+    );
+    app = createApp(db, { push });
+  });
+
+  const post = (path: string, key: string, body?: unknown) =>
+    app.request(`/api${path}`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+
+  const subscribeAs = (key: string, endpoint: string) =>
+    post("/push/subscribe", key, { endpoint, keys: { p256dh: "p", auth: "a" } });
+
+  const settle = () => Bun.sleep(DELAY * 3);
+
+  test("hands out the public key", async () => {
+    const res = await app.request("/api/push", { headers: { Authorization: `Bearer ${TOM}` } });
+    expect(await res.json()).toEqual({ publicKey: "public-key" });
+  });
+
+  test("is off without VAPID keys", async () => {
+    const db = openDb(":memory:");
+    syncUsers(db, parseUsers(`Tom:${TOM}`));
+    app = createApp(db);
+    const res = await app.request("/api/push", { headers: { Authorization: `Bearer ${TOM}` } });
+    expect(await res.json()).toEqual({ publicKey: null });
+    expect((await subscribeAs(TOM, "https://push.example/tom")).status).toBe(503);
+    expect((await post("/shopping", TOM)).status).toBe(503);
+  });
+
+  test("rejects bad subscriptions", async () => {
+    expect((await subscribeAs(TOM, "http://push.example/tom")).status).toBe(400);
+    expect((await post("/push/subscribe", TOM, { endpoint: "https://push.example/tom" })).status).toBe(400);
+    expect((await post("/push/subscribe", TOM, "nope")).status).toBe(400);
+  });
+
+  test("added items reach the others once, collected, without the actor", async () => {
+    await subscribeAs(TOM, "https://push.example/tom");
+    await subscribeAs(SAM, "https://push.example/sam");
+    await sync(TOM, { since: 0, ops: [{ table: "items", row: item({ name: "Milch", created_at: 1 }) }] });
+    await sync(TOM, { since: 0, ops: [{ table: "items", row: item({ name: "Brot", created_at: 2 }) }] });
+    await settle();
+
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toMatchObject({
+      endpoint: "https://push.example/sam",
+      message: { title: "Tom hat 2 Sachen hinzugefügt", body: "Milch, Brot", url: "/" },
+    });
+  });
+
+  test("leaves out items checked or deleted before the push goes out, and edits of existing ones", async () => {
+    await subscribeAs(SAM, "https://push.example/sam");
+    const milk = item({ name: "Milch" });
+    await sync(TOM, { since: 0, ops: [{ table: "items", row: milk }] });
+    await settle();
+    sent = [];
+
+    const bread = item({ name: "Brot" });
+    await sync(TOM, {
+      since: 0,
+      ops: [
+        { table: "items", row: { ...milk, name: "Hafermilch", updated_at: 2000 } },
+        { table: "items", row: bread },
+        { table: "items", row: { ...bread, deleted_at: 2000, updated_at: 2000 } },
+      ],
+    });
+    await settle();
+    expect(sent).toEqual([]);
+  });
+
+  test("names the store and links to it", async () => {
+    await subscribeAs(SAM, "https://push.example/sam");
+    const lidl = { id: "lidl", name: "Lidl", icon: null, created_at: 1, updated_at: 1, deleted_at: null };
+    await sync(TOM, {
+      since: 0,
+      ops: [
+        { table: "lists", row: lidl },
+        { table: "items", row: item({ list_id: "lidl", name: "Pesto" }) },
+      ],
+    });
+    await settle();
+    expect(sent[0]?.message).toMatchObject({ title: "Tom hat etwas hinzugefügt", body: "Pesto (Lidl)", url: "/l/lidl" });
+  });
+
+  test("going shopping notifies the others right away", async () => {
+    await subscribeAs(TOM, "https://push.example/tom");
+    await subscribeAs(SAM, "https://push.example/sam");
+    expect((await post("/shopping", SAM)).status).toBe(204);
+    expect(sent).toEqual([
+      {
+        endpoint: "https://push.example/tom",
+        message: expect.objectContaining({ title: "Sam geht einkaufen" }),
+        options: { TTL: 3600, urgency: "high" },
+      },
+    ]);
+  });
+
+  test("forgets subscriptions the push service says are gone", async () => {
+    await subscribeAs(SAM, "https://push.example/gone");
+    await subscribeAs(SAM, "https://push.example/flaky");
+    failing.set("https://push.example/gone", 410);
+    failing.set("https://push.example/flaky", 500);
+    await post("/shopping", TOM);
+    failing.clear();
+    await post("/shopping", TOM);
+    expect(sent.map((s) => s.endpoint)).toEqual(["https://push.example/flaky"]);
+  });
+
+  test("a device that switches users moves its subscription, and only its owner can remove it", async () => {
+    await subscribeAs(TOM, "https://push.example/phone");
+    await subscribeAs(SAM, "https://push.example/phone");
+    await post("/shopping", SAM);
+    expect(sent).toEqual([]);
+
+    await post("/push/unsubscribe", TOM, { endpoint: "https://push.example/phone" });
+    await post("/shopping", TOM);
+    expect(sent).toHaveLength(1);
+
+    await post("/push/unsubscribe", SAM, { endpoint: "https://push.example/phone" });
+    sent = [];
+    await post("/shopping", TOM);
+    expect(sent).toEqual([]);
+  });
+});
+
 describe("client files", () => {
   let client: ReturnType<typeof createApp>;
 
@@ -313,5 +463,13 @@ describe("config", () => {
     expect(() => parseUsers("Tom")).toThrow();
     expect(() => parseUsers("Tom:a,tom:b")).toThrow("duplicate name");
     expect(() => parseUsers("Tom:a,Sam:a")).toThrow("duplicate key");
+  });
+
+  test("VAPID is all or nothing", () => {
+    expect(parseVapid({})).toBeNull();
+    const vapid = { VAPID_PUBLIC_KEY: "pub", VAPID_PRIVATE_KEY: "priv", VAPID_SUBJECT: "mailto:tom@example.com" };
+    expect(parseVapid(vapid)).toEqual({ publicKey: "pub", privateKey: "priv", subject: "mailto:tom@example.com" });
+    expect(() => parseVapid({ ...vapid, VAPID_PRIVATE_KEY: undefined })).toThrow();
+    expect(() => parseVapid({ ...vapid, VAPID_SUBJECT: "tom@example.com" })).toThrow();
   });
 });

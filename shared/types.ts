@@ -66,3 +66,24 @@ export interface MeResponse {
   user: User;
   users: User[];
 }
+
+/** What PushSubscription.toJSON() gives, the part the server needs to send to a device. */
+export interface PushSubscriptionInput {
+  endpoint: string;
+  keys: { p256dh: string; auth: string };
+}
+
+/** GET /api/push. publicKey null: the server has no VAPID keys, push is off. */
+export interface PushInfo {
+  publicKey: string | null;
+}
+
+/** The JSON payload of a push, shown as a notification by the service worker. */
+export interface PushMessage {
+  title: string;
+  body: string;
+  /** Same tag replaces the previous notification instead of stacking. */
+  tag: string;
+  /** Opened on tap. */
+  url: string;
+}

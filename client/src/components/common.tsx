@@ -1,8 +1,8 @@
 import type { ComponentChildren } from "preact";
 import { brandOf } from "../brands";
-import { ConfirmDialog } from "./Dialog";
+import { AccountDialog } from "./AccountDialog";
 import { useEffect, useState } from "preact/hooks";
-import { logout, session } from "../session";
+import { session } from "../session";
 import { pendingCount, syncStatus } from "../state";
 
 export function userName(id: string | null): string | undefined {
@@ -64,23 +64,21 @@ export function IconButton({
   );
 }
 
+/** Opens the account menu: notifications, "going shopping", logout. */
 export function Avatar() {
   const name = session.value?.user.name ?? "";
-  const [confirming, setConfirming] = useState(false);
+  const [open, setOpen] = useState(false);
   return (
     <>
       <button
-        onClick={() => setConfirming(true)}
-        title={`Angemeldet als ${name}. Tippen zum Abmelden.`}
+        onClick={() => setOpen(true)}
+        aria-label={`Menü (angemeldet als ${name})`}
+        title={`Angemeldet als ${name}`}
         class="flex size-9 items-center justify-center rounded-full bg-stone-200 text-sm font-semibold text-stone-700 transition active:scale-95 dark:bg-stone-800 dark:text-stone-200"
       >
         {name[0]}
       </button>
-      {confirming && (
-        <ConfirmDialog title="Abmelden?" confirmLabel="Abmelden" onConfirm={logout} onClose={() => setConfirming(false)}>
-          Du bist als {name} angemeldet. Danach brauchst du deinen Schlüssel wieder.
-        </ConfirmDialog>
-      )}
+      {open && <AccountDialog onClose={() => setOpen(false)} />}
     </>
   );
 }

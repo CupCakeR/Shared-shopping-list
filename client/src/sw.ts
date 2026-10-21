@@ -1,8 +1,7 @@
 // Service worker: keeps the built app in a cache so it opens without a connection. Data isn't
-// cached here, it lives in IndexedDB, and /api always goes to the network.
+// cached here, it lives in IndexedDB, and /api always goes to the network. Also shows push notifications.
 
-// A module, so this `self` shadows the global one (typed as a plain worker) instead of clashing with it.
-export {};
+import type { PushMessage } from "../../shared/types";
 
 declare const self: ServiceWorkerGlobalScope & {
   /** Filled in at build time by vite-plugin-pwa: every file of the build, with a hash for unhashed ones. */
@@ -41,6 +40,36 @@ self.addEventListener("fetch", (e) => {
   // Every page is the same app shell, the client routes itself.
   const key = e.request.mode === "navigate" ? "/index.html" : e.request;
   e.respondWith(caches.match(key, { cacheName: CACHE }).then((hit) => hit ?? fetch(e.request)));
+});
+
+self.addEventListener("push", (e) => {
+  const message = e.data?.json() as PushMessage | undefined;
+  if (!message) return;
+  e.waitUntil(
+    self.registration.showNotification(message.title, {
+      body: message.body,
+      tag: message.tag,
+      // Buzz again when a newer push replaces one with the same tag, instead of swapping it silently.
+      renotify: true,
+      icon: "/icon-192.png",
+      data: { url: message.url },
+    } as NotificationOptions),
+  );
+});
+
+/** Brings the app to the front on the notification's page, opening it if it isn't running. */
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  const url = new URL((e.notification.data as { url?: string } | null)?.url ?? "/", location.origin).href;
+  e.waitUntil(
+    (async () => {
+      const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      const open = windows[0];
+      if (!open) return void (await self.clients.openWindow(url));
+      await open.focus();
+      if (open.url !== url) await open.navigate(url);
+    })(),
+  );
 });
 
 function hash(s: string) {
