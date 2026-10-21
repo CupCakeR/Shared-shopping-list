@@ -65,6 +65,20 @@ export async function addItem(listId: string, name: string): Promise<Item | unde
   return item;
 }
 
+/** True if another open item on the item's list already has this name. */
+export function isDuplicateName(item: Item, name: string) {
+  const key = normalize(name.trim());
+  return items.value.some(
+    (i) => i.id !== item.id && i.list_id === item.list_id && !i.checked && !i.deleted_at && normalize(i.name) === key,
+  );
+}
+
+export function renameItem(item: Item, name: string) {
+  const trimmed = name.trim();
+  if (!trimmed || trimmed === item.name || isDuplicateName(item, trimmed)) return;
+  return save({ items: [{ ...item, name: trimmed, updated_at: stamp(item) }] });
+}
+
 export function setChecked(item: Item, checked: boolean) {
   const updated_at = stamp(item);
   return save({
